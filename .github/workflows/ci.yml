@@ -2,9 +2,6 @@ name: Keycloak CI
 
 on:
   push:
-    branches-ignore:
-      - main
-      - dependabot/**
   pull_request:
   workflow_dispatch:
 
@@ -21,9 +18,6 @@ concurrency:
 defaults:
   run:
     shell: bash
-
-permissions:
-  contents: read
 
 jobs:
 
@@ -54,7 +48,6 @@ jobs:
             RUN_AURORADB_TESTS=true
           fi
           echo "run-aurora-tests=$RUN_AURORADB_TESTS" >> $GITHUB_OUTPUT
-
   build:
     name: Build
     if: needs.conditional.outputs.ci == 'true'
@@ -90,9 +83,7 @@ jobs:
             PROJECTS="$PROJECTS$SEP$i"
             SEP=","
           done
-
           ./mvnw test -pl "$PROJECTS" -am
-
       - name: Upload JVM Heapdumps
         if: always()
         uses: ./.github/actions/upload-heapdumps
@@ -124,7 +115,6 @@ jobs:
           TESTS=`testsuite/integration-arquillian/tests/base/testsuites/base-suite.sh ${{ matrix.group }}`
           echo "Tests: $TESTS"
           ./mvnw test ${{ env.SUREFIRE_RETRY }} -Pauth-server-quarkus -Dtest=$TESTS -pl testsuite/integration-arquillian/tests/base 2>&1 | misc/log/trimmer.sh
-
       - name: Upload JVM Heapdumps
         if: always()
         uses: ./.github/actions/upload-heapdumps
@@ -165,7 +155,6 @@ jobs:
           TESTS="org.keycloak.testsuite.adapter.**"
           echo "Tests: $TESTS"
           ./mvnw test ${{ env.SUREFIRE_RETRY }} -Pauth-server-quarkus -Papp-server-wildfly -Dtest=$TESTS -Dapp.server.ssl.required=true -pl testsuite/integration-arquillian/tests/base 2>&1 | misc/log/trimmer.sh
-
       - name: Upload JVM Heapdumps
         if: always()
         uses: ./.github/actions/upload-heapdumps
@@ -206,7 +195,6 @@ jobs:
           TESTS="org.keycloak.testsuite.adapter.**"
           echo "Tests: $TESTS"
           ./mvnw test ${{ env.SUREFIRE_RETRY }} -Pfirefox-strict-cookies -Pauth-server-quarkus -Papp-server-wildfly -Dtest=$TESTS -Dapp.server.ssl.required=true "-Dwebdriver.gecko.driver=$GECKOWEBDRIVER/geckodriver" -pl testsuite/integration-arquillian/tests/base 2>&1 | misc/log/trimmer.sh
-
       - name: Upload JVM Heapdumps
         if: always()
         uses: ./.github/actions/upload-heapdumps
@@ -231,7 +219,7 @@ jobs:
     timeout-minutes: 15
     strategy:
       matrix:
-        os: [ ubuntu-latest, windows-latest ]
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -244,7 +232,6 @@ jobs:
       - name: Run unit tests
         run: |
           ./mvnw test -f quarkus/pom.xml -pl '!tests,!tests/junit5,!tests/integration,!dist'
-
       - name: Upload JVM Heapdumps
         if: always()
         uses: ./.github/actions/upload-heapdumps
@@ -284,7 +271,7 @@ jobs:
       fail-fast: false
     runs-on: ${{ matrix.os }}
     env:
-      MAVEN_OPTS: -Xmx1536m
+      MAVEN_OPTS: -Xmx1024m
     steps:
       - uses: actions/checkout@v4
 
@@ -304,12 +291,10 @@ jobs:
           PARAMS["container"]="-Dkc.quarkus.tests.dist=docker"
           PARAMS["storage"]="-Ptest-database"
           PARAMS["smoke"]="-Dkc.quarkus.tests.groups=smoke"
-
           if [ "${{ matrix.suite }}" == "container" ]; then
             ./mvnw install -pl quarkus/tests/integration -am -DskipTests
           fi
           ./mvnw test -pl quarkus/tests/integration ${PARAMS["${{ matrix.suite }}"]} 2>&1 | misc/log/trimmer.sh
-
       - name: Upload JVM Heapdumps
         if: always()
         uses: ./.github/actions/upload-heapdumps
@@ -326,7 +311,7 @@ jobs:
     timeout-minutes: 100
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         dist: [temurin]
         version: [17]
       fail-fast: false
@@ -344,9 +329,6 @@ jobs:
       - name: Prepare Quarkus distribution with current JDK
         run: ./mvnw install -e -pl testsuite/integration-arquillian/servers/auth-server/quarkus
 
-      - name: Run new base tests
-        run: ./mvnw package -f tests/pom.xml -Dtest=JDKTestSuite
-
       - name: Run base tests
         run: |
           TESTS=`testsuite/integration-arquillian/tests/base/testsuites/suite.sh jdk`
@@ -356,7 +338,6 @@ jobs:
           else
             ./mvnw test ${{ env.SUREFIRE_RETRY }} -Pauth-server-quarkus -Dtest=$TESTS  "-Dwebdriver.chrome.driver=$CHROMEWEBDRIVER/chromedriver"     -pl testsuite/integration-arquillian/tests/base 2>&1 | misc/log/trimmer.sh
           fi
-
       - name: Build with JDK
         run:
           ./mvnw install -e -DskipTests -DskipExamples
@@ -395,7 +376,6 @@ jobs:
           TESTS=`testsuite/integration-arquillian/tests/base/testsuites/suite.sh login`
           echo "Tests: $TESTS"
           ./mvnw test ${{ env.SUREFIRE_RETRY }} -Pauth-server-quarkus -Dtest=$TESTS -pl testsuite/integration-arquillian/tests/base 2>&1 | misc/log/trimmer.sh
-
       - name: Upload JVM Heapdumps
         if: always()
         uses: ./.github/actions/upload-heapdumps
@@ -431,7 +411,6 @@ jobs:
           TESTS=`testsuite/integration-arquillian/tests/base/testsuites/suite.sh volatile-sessions`
           echo "Tests: $TESTS"
           ./mvnw test ${{ env.SUREFIRE_RETRY }} -Pauth-server-quarkus "-Dwebdriver.chrome.driver=$CHROMEWEBDRIVER/chromedriver" -Dauth.server.feature.disable=persistent-user-sessions -Dtest=$TESTS -pl testsuite/integration-arquillian/tests/base 2>&1 | misc/log/trimmer.sh
-
       - name: Upload JVM Heapdumps
         if: always()
         uses: ./.github/actions/upload-heapdumps
@@ -478,7 +457,6 @@ jobs:
           TESTS=`testsuite/integration-arquillian/tests/base/testsuites/suite.sh clusterless`
           echo "Tests: $TESTS"
           ./mvnw test ${{ env.SUREFIRE_RETRY }} -Pauth-server-quarkus -Pinfinispan-server -Dauth.server.feature=${{ matrix.variant }} -Dauth.server.feature.disable=persistent-user-sessions -Dtest=$TESTS -pl testsuite/integration-arquillian/tests/base 2>&1 | misc/log/trimmer.sh
-
       - name: Upload JVM Heapdumps
         if: always()
         uses: ./.github/actions/upload-heapdumps
@@ -502,9 +480,6 @@ jobs:
     if: needs.conditional.outputs.ci-aurora == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 150
-    permissions:
-      contents: read
-      actions: write
     steps:
       - uses: actions/checkout@v4
 
@@ -533,7 +508,6 @@ jobs:
           PROPS+=' -Dkeycloak.connectionsJpa.jdbcParameters=\"?ssl=true&sslmode=verify-ca&sslrootcert=/opt/keycloak/aws.pem\"'
           
           echo "maven_properties=${PROPS}" >> $GITHUB_OUTPUT
-
       - id: aurora-create
         name: Create Aurora DB
         uses: ./.github/actions/aurora-create-database
@@ -574,16 +548,12 @@ jobs:
           
           PROPS+=" -Dauth.server.db.host=${{ steps.aurora-create.outputs.endpoint }} -Dkeycloak.connectionsJpa.password=${{ steps.aurora-init.outputs.aurora-cluster-password }}"
           PROPS+=" -Djdbc.mvn.groupId=software.amazon.jdbc -Djdbc.mvn.artifactId=aws-advanced-jdbc-wrapper -Djdbc.mvn.version=2.3.1 -Djdbc.driver.tmp.dir=target/unpacked/keycloak-${{ env.old-version }}/providers"
-
           cd .github/scripts/ansible
           ./mvn_ec2_runner.sh ${AWS_REGION} ${EC2_CLUSTER_NAME} "clean install -B ${{ env.SUREFIRE_RETRY }} -Pauth-server-quarkus -Pdb-aurora-postgres -Pauth-server-migration $PROPS -Dtest=MigrationTest -Dmigration.mode=auto -Dmigrated.auth.server.version=${{ env.old-version }} -Dmigration.import.file.name=migration-realm-${{ env.old-version }}.json -Dauth.server.ssl.required=false -f testsuite/integration-arquillian/pom.xml 2>&1 | misc/log/trimmer.sh"
-
           # Copy returned surefire-report directories to workspace root to ensure they're discovered
           results=(files/keycloak/results/*)
           rsync -a $results/* ../../../
-
           rm -rf $results
-
       - name: Upload JVM Heapdumps
         if: always()
         uses: ./.github/actions/upload-heapdumps
@@ -626,7 +596,6 @@ jobs:
           results=(files/keycloak/results/*)
           rsync -a $results/* ../../../
           rm -rf $results
-
       - name: Upload JVM Heapdumps
         if: always()
         uses: ./.github/actions/upload-heapdumps
@@ -657,7 +626,6 @@ jobs:
         run: |
           source .venv/bin/activate
           ./aws_ec2.sh delete ${{ steps.aurora-init.outputs.region }} ${{ steps.ec2-create.outputs.ec2_cluster }}
-
       - name: Delete Aurora DB
         if: always()
         run: |
@@ -687,13 +655,11 @@ jobs:
 
       - name: Run new base tests
         run: |
-          KC_TEST_DATABASE=${{ matrix.db }} KC_TEST_DATABASE_REUSE=true TESTCONTAINERS_REUSE_ENABLE=true ./mvnw package -f tests/pom.xml -Dtest=DatabaseTestSuite
-
+          KC_TEST_DATABASE=${{ matrix.db }} KC_TEST_DATABASE_REUSE=true TESTCONTAINERS_REUSE_ENABLE=true ./mvnw test -f tests/pom.xml -Dtest=DatabaseTestSuite
       - name: Database container port
         run: |
           DATABASE_PORT=$(docker ps -l --format '{{ .ID }}' | xargs docker port | cut -d ':' -f 2)
           echo "DATABASE_PORT=$DATABASE_PORT" >> $GITHUB_ENV 
-
       - name: Run base tests
         run: |
           TESTS=`testsuite/integration-arquillian/tests/base/testsuites/suite.sh database`
@@ -706,7 +672,6 @@ jobs:
             -Ddocker.database.port=$DATABASE_PORT \
             -Ddocker.container.testdb.ip=localhost \
             -pl testsuite/integration-arquillian/tests/base 2>&1 | misc/log/trimmer.sh
-
       - name: Run cluster JDBC_PING2 UDP smoke test
         run: |
           ./mvnw test ${{ env.SUREFIRE_RETRY }} \
@@ -720,7 +685,6 @@ jobs:
             -Ddocker.container.testdb.ip=localhost \
             -pl testsuite/integration-arquillian/tests/base \
             2>&1 | misc/log/trimmer.sh
-
       - name: Run cluster JDBC_PING2 TCP smoke test
         run: |
           ./mvnw test ${{ env.SUREFIRE_RETRY }} \
@@ -734,7 +698,6 @@ jobs:
             -Ddocker.container.testdb.ip=localhost \
             -pl testsuite/integration-arquillian/tests/base \
             2>&1 | misc/log/trimmer.sh
-
       - name: Upload JVM Heapdumps
         if: always()
         uses: ./.github/actions/upload-heapdumps
@@ -791,7 +754,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
-      MAVEN_OPTS: -Xmx1536m
+      MAVEN_OPTS: -Xmx1024m
     steps:
       - uses: actions/checkout@v4
 
@@ -802,7 +765,6 @@ jobs:
       - name: Run cluster tests
         run: |
           ./mvnw test ${{ env.SUREFIRE_RETRY }} -Pauth-server-cluster-quarkus,db-postgres "-Dwebdriver.chrome.driver=$CHROMEWEBDRIVER/chromedriver" -Dsession.cache.owners=2 -Dtest=**.cluster.** -pl testsuite/integration-arquillian/tests/base 2>&1 | misc/log/trimmer.sh
-
       - name: Upload JVM Heapdumps
         if: always()
         uses: ./.github/actions/upload-heapdumps
@@ -833,7 +795,6 @@ jobs:
           cd .github/fake_fips
           make
           sudo insmod fake_fips.ko
-
       - id: unit-test-setup
         name: Unit test setup
         uses: ./.github/actions/unit-test-setup
@@ -868,7 +829,6 @@ jobs:
           cd .github/fake_fips
           make
           sudo insmod fake_fips.ko
-
       - id: integration-test-setup
         name: Integration test setup
         uses: ./.github/actions/integration-test-setup
@@ -916,7 +876,6 @@ jobs:
           TESTS=`testsuite/integration-arquillian/tests/base/testsuites/suite.sh forms`
           echo "Tests: $TESTS"
           ./mvnw test ${{ env.SUREFIRE_RETRY }} -Pauth-server-quarkus -Dtest=$TESTS -Dbrowser=${{ matrix.browser }} -f testsuite/integration-arquillian/tests/base/pom.xml 2>&1 | misc/log/trimmer.sh
-
       - name: Upload JVM Heapdumps
         if: always()
         uses: ./.github/actions/upload-heapdumps
@@ -958,7 +917,6 @@ jobs:
           TESTS=`testsuite/integration-arquillian/tests/base/testsuites/suite.sh webauthn`
           echo "Tests: $TESTS"
           ./mvnw test ${{ env.SUREFIRE_RETRY }} -Pauth-server-quarkus -Dtest=$TESTS -Dbrowser=${{ matrix.browser }} "-Dwebdriver.chrome.driver=$CHROMEWEBDRIVER/chromedriver" "-Dwebdriver.gecko.driver=$GECKOWEBDRIVER/geckodriver" -pl testsuite/integration-arquillian/tests/base 2>&1 | misc/log/trimmer.sh
-
       - name: Upload JVM Heapdumps
         if: always()
         uses: ./.github/actions/upload-heapdumps
@@ -1042,7 +1000,6 @@ jobs:
           -Dauth.server.db.host=localhost \
           "-Dwebdriver.chrome.driver=$CHROMEWEBDRIVER/chromedriver" \
           -f testsuite/integration-arquillian/pom.xml 2>&1 | misc/log/trimmer.sh
-
       - name: Upload JVM Heapdumps
         if: always()
         uses: ./.github/actions/upload-heapdumps
@@ -1089,7 +1046,7 @@ jobs:
         uses: ./.github/actions/integration-test-setup
 
       - name: Run tests
-        run: ./mvnw package -f tests/pom.xml
+        run: ./mvnw test -f tests/pom.xml
 
   check:
     name: Status Check - Keycloak CI
