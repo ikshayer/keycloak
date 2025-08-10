@@ -2,9 +2,6 @@ name: Keycloak CI
 
 on:
   push:
-    branches-ignore:
-      - main
-      - dependabot/**
   pull_request:
   workflow_dispatch:
 
@@ -228,7 +225,7 @@ jobs:
     timeout-minutes: 15
     strategy:
       matrix:
-        os: [ ubuntu-latest, windows-latest ]
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -323,7 +320,7 @@ jobs:
     timeout-minutes: 100
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         dist: [temurin]
         version: [17]
       fail-fast: false
